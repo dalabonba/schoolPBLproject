@@ -24,7 +24,7 @@ def ocr(name):
     #'r'使後面的字串忠實呈現(\n不換行，而是變成字串'\n')
     #[A-Z0-9]',''   把A到Z跟0到9取代為空值
     #[^A-Z0-9]',''  把A到Z跟0到9以外的字元取代為空值
-    print("辨識出:"+txt)
+    print("re後:"+txt)
 
 img=cv2.imread("new.jpg")
 

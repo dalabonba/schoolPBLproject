@@ -26,4 +26,5 @@ VtapCard=random.choice(tapCardList)
 print(VtapCard)
 
 for row in db.execute(f'SELECT token FROM table1 where card == {VtapCard}'):
-    print(row)
+    row1=str(row)
+    print(row1)
