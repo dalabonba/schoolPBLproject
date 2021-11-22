@@ -1,7 +1,7 @@
 #pyocr https://www.gushiciku.cn/dc_tw/109866886
 #opencv https://blog.gtwang.org/programming/opencv-basic-image-read-and-write-tutorial/
-#opencv2 https://yanwei-liu.medium.com/python%E5%BD%B1%E5%83%8F%E8%BE%A8%E8%AD%98%E7%AD%86%E8%A8%98-%E4%B8%89-open-cv%E6%93%8D%E4%BD%9C%E7%AD%86%E8%A8%98-1eab0b95339c
-#opencv3 https://medium.com/pivot-the-life/%E4%BD%BF%E7%94%A8-opencv-%E5%8F%8A-tesseract-%E9%80%B2%E8%A1%8C-ocr-%E8%BE%A8%E8%AD%98-2-%E4%BD%BF%E7%94%A8-opencv-%E9%80%B2%E8%A1%8C%E5%BD%B1%E5%83%8F%E5%89%8D%E8%99%95%E7%90%86-cd18ddd4fef0
+#opencv https://yanwei-liu.medium.com/python%E5%BD%B1%E5%83%8F%E8%BE%A8%E8%AD%98%E7%AD%86%E8%A8%98-%E4%B8%89-open-cv%E6%93%8D%E4%BD%9C%E7%AD%86%E8%A8%98-1eab0b95339c
+#opencv https://medium.com/pivot-the-life/%E4%BD%BF%E7%94%A8-opencv-%E5%8F%8A-tesseract-%E9%80%B2%E8%A1%8C-ocr-%E8%BE%A8%E8%AD%98-2-%E4%BD%BF%E7%94%A8-opencv-%E9%80%B2%E8%A1%8C%E5%BD%B1%E5%83%8F%E5%89%8D%E8%99%95%E7%90%86-cd18ddd4fef0
 
 import cv2,re,pyocr,pyocr.builders
 from PIL import Image

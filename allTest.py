@@ -196,6 +196,6 @@ conn = sqlite3.connect('allTest.db')
 db = conn.cursor()
 
 # virtualTapCard("40941157")#虛擬刷卡繳費
-# virtualGate("1.jpg")#虛擬閘門
+virtualGate("1.jpg")#虛擬閘門
 
 conn.close() #關閉資料庫
