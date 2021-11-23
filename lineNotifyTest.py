@@ -17,6 +17,6 @@ def lineNotifyMessage(token, msg):
 
 
 if __name__ == "__main__":
-  token = 'AXXMRm1rdxj69E3IWDrKBnatzhhPYrgmvL8G1ikehnV'
+  token = 'ozF9oFsD4Z3zvtyy9xXHYzd08na4gaT3EZEZGXPmVwC'#AXXMRm1rdxj69E3IWDrKBnatzhhPYrgmvL8G1ikehnV
   message = '基本功能測試'
   lineNotifyMessage(token, message)

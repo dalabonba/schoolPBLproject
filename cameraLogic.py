@@ -11,13 +11,13 @@ def c():
     global b
     while 1:
         if keyboard.is_pressed("Ctrl"):
-            b=2
+            b='2'
         elif keyboard.is_pressed("Space"):
-            b=1
+            b='1'
 t=Thread(target=c)
 t.start()
 
-b=1
+b='1'  
 a=""
 while 1:
     

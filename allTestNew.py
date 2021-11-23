@@ -12,6 +12,7 @@ from datetime import datetime
 from gtts import gTTS
 from pygame import mixer
 from threading import Thread
+from time import sleep
 
 #speakText:將輸入的文字用語音播放(語系:zh-TW)
 #如果在播放途中又執行一次speakText，會在第一個播到一半時直接播第二個
@@ -150,8 +151,13 @@ def readCard():
     data = ser.readline() 
     
     #取得資料後，使用 utf-8 方式解碼，解碼後為str資料型別
-    data = data.decode('utf-8')
-
+    data = data.decode('utf-8').strip()
+    
+    # for i in data:
+    #     print("?",i)
+    #     print(type(i))
+    data=data[1::]
+    
     # 關閉連接埠
     ser.close()
     
@@ -175,7 +181,7 @@ def signUp():
     window.resizable(0,0)
     
     def getCardAndToken():
-        label=tk.Label(window,text="請逼卡", font=('Arial', 40))
+        label=tk.Label(window,text="請逼卡", font=('Arial', 30))
         label.pack()
         
         def aa():
@@ -205,13 +211,15 @@ def signUp():
                     print('code：' + indata.decode())
                     code = indata.decode()
                     s.close()
-                    break
+                    return code
+                    
 
 
-            def notify(): 
+            def get_token(): 
                 # STEP 1    取得 code
+                
                 code_URL = 'https://notify-bot.line.me/oauth/authorize?response_type=code&scope=notify&response_mode=form_post&state=f094a459&client_id={}&redirect_uri={}'.format(client_id, redirect_uri) 
-
+                print("------------------------",code_URL)
                 
                 webbrowser.open_new(code_URL)
                 code_r = requests.get(code_URL)
@@ -221,11 +229,11 @@ def signUp():
                     print('code_URL：ok')
                 
                 # 執行 get_code 函式
-                get_code()
+                code=get_code()
                 # STEP 2    取得用戶端 token
                 token_URL = "https://notify-bot.line.me/oauth/token?grant_type=authorization_code&redirect_uri={}&client_id={}&client_secret={}&code={}".format(redirect_uri, client_id, client_secret, code)
                 token_r = requests.post(token_URL)
-
+                print("----------------------",token_URL)
                 # 若連線成功則回傳 OK
                 if token_r.status_code == requests.codes.ok:
                     print('token_URL：ok')
@@ -235,7 +243,7 @@ def signUp():
                     access_token = json.loads(token_r.text)
 
                     # 取得註冊用戶 token
-                    print("token：{}".format(access_token['access_token']))
+                    # print("token：{}".format(access_token['access_token']))
                     return access_token['access_token']
 
                 # 若發生錯誤則回傳 error code
@@ -244,24 +252,17 @@ def signUp():
                     
             #-------------------------------------------------------------------------
             
-            #以秒為單位設置讀取時間，None：收到資料後才進行後續讀取動作，0：持續執行讀取動作
-            ser = serial.Serial("COM3", 9600, timeout=None)
-            # 當設定好參數後，連接埠會自動開啟
-
-            print("是否開啟連接埠：", ser.isOpen(), "\n")
-            # 讀取 ser 資料，讀出為bytes資料型別
-            data = ser.readline() 
-            #取得資料後，使用 utf-8 方式解碼，解碼後為str資料型別
-            data = data.decode('utf-8')
-            
-            print(data)
-            print(notify())
-            
-            # 關閉連接埠
-            ser.close()
-            print("是否開啟連接埠：", ser.isOpen())
+            card=readCard()
             label.pack_forget()
+            token=get_token()
             
+            conn = sqlite3.connect('allTestNew.db')
+            db = conn.cursor()
+            print(f"++++++++++++++++++++{card}")
+            print(f"++++++++++++++++++++{token}")
+            db.execute(f'INSERT INTO customer VALUES ("{card}","{token}")')
+            conn.commit()
+            conn.close()
         
         
         aa = Thread(target=aa)
@@ -276,11 +277,32 @@ signUp = Thread(target = signUp)
 signUp.start()
 
 
+
+#推播
+def notify(_card,_message):
+    def lineNotifyMessage(token, msg):
+
+        headers = {
+            "Authorization": "Bearer " + token, 
+            "Content-Type" : "application/x-www-form-urlencoded"
+        }
+
+        payload = {'message': msg}
+        r = requests.post("https://notify-api.line.me/api/notify", headers = headers, params = payload)
+        return r.status_code
+    
+    if __name__ == "__main__":
+      for rowTokenDb in db.execute(f'SELECT token FROM customer WHERE card == "{_card}"'):
+          token = rowTokenDb[0]
+      message = _message
+      lineNotifyMessage(token, message)
+
+
 conn = sqlite3.connect('allTestNew.db')
 db = conn.cursor()
 
 
-findLicensePlate("6.jpg")
+findLicensePlate("1.jpg")
 licensePlateText=licensePlateOcr()
 print(licensePlateText)
 
@@ -290,9 +312,8 @@ if(len(licensePlateText)!=6 and len(licensePlateText)!=7):
 else:
     # speakText("車牌號碼為{}".format(addSpaceBetweenChar(licensePlateText)))
     
-    
     #---------------是否停車中------------
-    carIsParking=False
+    isCarParking=False
     for rowParkingDb in db.execute('SELECT car FROM parkingLot'):
         # print("rowParkingDbIsTuple:",rowParkingDb)
         
@@ -300,16 +321,63 @@ else:
         # print("rowParkingDbRe:",rowParkingDbRe)
         
         if rowParkingDbRe==licensePlateText:
-            carIsParking=True
-    #---------------是否停車中------------
+            isCarParking=True
+    #---------------是否停車中end---------
     
-    
-    if not carIsParking:#未停車，代表要進場
+    if not isCarParking:#未停車，代表要進場
         nowTime = datetime.now().strftime("%Y/%m/%d %H:%M:%S")#https://shengyu7697.github.io/python-get-current-time-and-date/
         print(nowTime)
         speakText(f"歡迎光臨{licensePlateText}，您的入場時間是{nowTime}")
-        db.execute(f'INSERT INTO parkingLot VALUES ("{licensePlateText}","{nowTime}","0")')
+        db.execute(f'INSERT INTO parkingLot VALUES ("{licensePlateText}","{nowTime}")')
         conn.commit()
+        
+        
     else:#停車中，代表要離場
-        speakText("謝謝光臨，這裡還要判斷是否註冊，是否繳費")
+    
+        #-----------------計費:每小時20元，未滿一小時以一小時計費
+        for rowInTimeDb in db.execute(f'SELECT inTime FROM parkingLot WHERE car == "{licensePlateText}"'):
+            # print("inTimeDbIsTuple:",rowInTimeDb)
+            # print("inTimeDbDb[0]:",rowInTimeDb[0])
+            
+            nowTime = datetime.now()#https://blog.csdn.net/Gordennizaicunzai/article/details/78926255   https://codertw.com/%E7%A8%8B%E5%BC%8F%E8%AA%9E%E8%A8%80/370349/
+            parkInTime = datetime.strptime(rowInTimeDb[0],"%Y/%m/%d %H:%M:%S")
+        delta=nowTime-parkInTime
+        # print(delta)
+        days=delta.days
+        seconds=delta.seconds
+        minutes, seconds = divmod(seconds, 60)# divmod() 函數把除數和餘數運算結果結合起来，返回一個包含商和餘數的數組(a // b, a % b)
+        hours, minutes = divmod(minutes, 60)
+        print(f"停了{days}天{hours}小時{minutes}分{seconds}秒")
+        parkHours=days*24+hours
+        if minutes!=0 or seconds!=0:
+            parkHours+=1
+        print(f"收費時數為{parkHours}小時，共{parkHours*20}元")
+        speakText(f"停了{days}天{hours}小時又{minutes}分{seconds}秒，收費時數為{parkHours}小時，共{parkHours*20}元")#加"又"的原因，拿「2小時3分」去給google小姐念就知道
+        while mixer.music.get_busy():#等上面講完
+            sleep(0.5)
+        #-----------------計費end
+        
+        speakText("謝謝光臨，請刷卡")
+        card=readCard()
+        print(card)
+        
+        speakText("扣款完成，請出場")#扣款
+        # db.execute('DELETE FROM parkingLot WHERE car == "{licensePlateText}";')      不明原因無法刪除
+        # conn.commit()
+        
+        #-------------是否註冊------------
+        isCardInDb=False
+        for rowCardDb in db.execute('select card from customer'):
+            # print("rowCardDb:",rowCardDb)
+            
+            rowCardDbRe=re.sub('[^A-Z0-9]','',str(rowCardDb))
+            # print("rowCardDbRe:",rowCardDbRe)
+            
+            if rowCardDbRe==card:
+                isCardInDb=True
+        #-------------是否註冊end---------
+        
+        if isCardInDb:#有註冊，推播
+            notify(card,f"感謝顧客{licensePlateText}光臨本停車場\n您此次停了{days}天{hours}小時{minutes}分{seconds}秒\n收費時數為{parkHours}小時，共{parkHours*20}元")
+            
         
