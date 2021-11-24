@@ -302,7 +302,7 @@ conn = sqlite3.connect('allTestNew.db')
 db = conn.cursor()
 
 
-findLicensePlate("1.jpg")
+findLicensePlate("6.jpg")
 licensePlateText=licensePlateOcr()
 print(licensePlateText)
 
@@ -362,8 +362,8 @@ else:
         print(card)
         
         speakText("扣款完成，請出場")#扣款
-        # db.execute('DELETE FROM parkingLot WHERE car == "{licensePlateText}";')      不明原因無法刪除
-        # conn.commit()
+        db.execute(f'DELETE FROM parkingLot WHERE car == "{licensePlateText}"')
+        conn.commit()
         
         #-------------是否註冊------------
         isCardInDb=False
