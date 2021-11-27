@@ -14,25 +14,13 @@ from pygame import mixer
 from threading import Thread
 from time import sleep
 
-#speakText:將輸入的文字用語音播放(語系:zh-TW)
-#如果在播放途中又執行一次speakText，會在第一個播到一半時直接播第二個
-def speakText(_text):
-    with tempfile.NamedTemporaryFile(delete=True) as fp:
-        tts=gTTS(text=_text,lang='zh-TW')
-        
-        #要用fp.name存檔才可以在執行後自動刪除檔案
-        tts.save(f'{fp.name}.mp3')
-        
-        mixer.init()
-        mixer.music.load(f'{fp.name}.mp3')
-        mixer.music.play()
 
 
 
-#findLicensePlate:找出牌照範圍並裁切存檔
-def findLicensePlate(imgName):
-    # 讀取彩色的圖片
-    img = cv2.imread(imgName)
+#findLicensePlateAndOcr:若找出牌照範圍就裁切存檔成new.jpg，然後return執行licensePlateOcr；若沒找到牌照範圍，回傳"偵測不到車牌範圍"
+def findLicensePlateAndOcr(img):
+    # 用檔名從同資料夾讀取彩色的圖片
+    # img = cv2.imread(imgName)
     # cv2.imshow("img",img)
     # cv2.waitKey(0)
     
@@ -79,63 +67,72 @@ def findLicensePlate(imgName):
         x,y,w,h = cv2.boundingRect(i1)#https://ithelp.ithome.com.tw/articles/10236213
         if w>maxW and w>=h:
             maxW=w
-            xywh=[x,y,w,h]
-    # cv2.imshow("Result",img[xywh[1]:xywh[1]+xywh[3],xywh[0]:xywh[0]+xywh[2]])#img[y:y+h,x:x+w]
-    # cv2.waitKey(0)
-    imgResult = img[xywh[1]:xywh[1]+xywh[3],xywh[0]:xywh[0]+xywh[2]]#img[y:y+h,x:x+w]
-    
-    cv2.imwrite("new.jpg",imgResult)
+            xywh=[x,y,w,h]    
+    try:
+        # cv2.imshow("Result",img[xywh[1]:xywh[1]+xywh[3],xywh[0]:xywh[0]+xywh[2]])#img[y:y+h,x:x+w]
+        # cv2.waitKey(0)
+        imgResult = img[xywh[1]:xywh[1]+xywh[3],xywh[0]:xywh[0]+xywh[2]]#img[y:y+h,x:x+w]
+        cv2.imwrite("new.jpg",imgResult)
+        return licensePlateOcr()
+    except:
+        return "偵測不到車牌範圍"
 
 
 
-#licensePlateOcr:將findLicensePlate裁切完的圖片進行辨識預處理，再用ocr辨識出車牌文字
+#licensePlateOcr:將findLicensePlateAndOcr裁切完的圖片(new.jpg)進行辨識預處理後存檔成new2.jpg，再辨識出車牌文字回傳
 def licensePlateOcr():
-    
-    tools=pyocr.get_available_tools()
-    if len(tools)==0:
-        speakText("沒有偵測到OCR工具")
-    else:
-        tool=tools[0]
-        # print("這裡使用的OCR工具是{}".format(tool.get_name()))
-        # langs = tool.get_available_languages() # 獲得所有識別語言的語言包，返回列表
-        # print("支援識別的語言有：{}" .format("、".join(langs)))
-    
-    #ocr:讀取圖片輸出文字
-    def ocr(name):
-        img=Image.open(name)
-        # img.show()
-        txt=tool.image_to_string(img,lang="eng",builder=pyocr.builders.TextBuilder())
-        # print("辨識出:"+txt)
+            
+            img=cv2.imread("new.jpg")
+            
+            res_img=cv2.resize(img,(300,100),interpolation=cv2.INTER_CUBIC)
+            #縮小，如果字太大會讀不到
+            
+            gray_img=cv2.cvtColor(res_img,cv2.COLOR_RGB2GRAY)
+            #轉成灰階
+            
+            sim_inv=cv2.threshold(gray_img,100,255,cv2.THRESH_BINARY)[1]
+            #二值化(轉成黑白)，'_INV'是顏色反轉可加可不加，會回傳2個值所以要'[1]'用來取第二個
+            
+            mblur=cv2.medianBlur(sim_inv,5)
+            #高斯模糊
+            
+            cut_img=mblur[20:90,20:290]
+            # 裁切[y裁切起始點:y切到哪,x裁切起始點:x切到哪]
+            
+            cv2.imwrite("new2.jpg",cut_img)
+            #存檔
+            
+            #------------------
+            
+            img=Image.open("new2.jpg")
+            # img.show()
+            txt=tool.image_to_string(img,lang="eng",builder=pyocr.builders.TextBuilder())
+            # print("辨識出:"+txt)
+            
+            txt=re.sub(r'[^A-Z0-9]','', txt)
+            #'r'使後面的字串忠實呈現(\n不換行，而是變成字串'\n')
+            #[A-Z0-9]',''   把A到Z跟0到9取代為空值
+            #[^A-Z0-9]',''  把A到Z跟0到9以外的字元取代為空值
+            
+            # print("re後:"+txt)
+            return txt
+
+
+
+
+#speakText:將輸入的文字用語音播放(語系:zh-TW)
+#如果在播放途中又執行一次speakText，會在第一個播到一半時直接播第二個
+def speakText(_text):
+    with tempfile.NamedTemporaryFile(delete=True) as fp:
+        tts=gTTS(text=_text,lang='zh-TW')
         
-        txt=re.sub(r'[^A-Z0-9]','', txt)
-        #'r'使後面的字串忠實呈現(\n不換行，而是變成字串'\n')
-        #[A-Z0-9]',''   把A到Z跟0到9取代為空值
-        #[^A-Z0-9]',''  把A到Z跟0到9以外的字元取代為空值
+        #要用fp.name存檔才可以在執行後自動刪除檔案
+        tts.save(f'{fp.name}.mp3')
         
-        # print("re後:"+txt)
-        return txt
-    
-    img=cv2.imread("new.jpg")
-    
-    res_img=cv2.resize(img,(300,100),interpolation=cv2.INTER_CUBIC)
-    #縮小，如果字太大會讀不到
-    
-    gray_img=cv2.cvtColor(res_img,cv2.COLOR_RGB2GRAY)
-    #轉成灰階
-    
-    sim_inv=cv2.threshold(gray_img,100,255,cv2.THRESH_BINARY)[1]
-    #二值化(轉成黑白)，'_INV'是顏色反轉可加可不加，會回傳2個值所以要'[1]'用來取第二個
-    
-    mblur=cv2.medianBlur(sim_inv,5)
-    #高斯模糊
-    
-    cut_img=mblur[20:90,20:290]
-    # 裁切[y裁切起始點:y切到哪,x裁切起始點:x切到哪]
-    
-    cv2.imwrite("new2.jpg",cut_img)
-    #存檔
-    
-    return ocr("new2.jpg")
+        mixer.init()
+        mixer.music.load(f'{fp.name}.mp3')
+        mixer.music.play()
+
 
 
 
@@ -298,86 +295,125 @@ def notify(_card,_message):
       lineNotifyMessage(token, message)
 
 
+
+
+#主程式
 conn = sqlite3.connect('allTestNew.db')
 db = conn.cursor()
 
 
-findLicensePlate("6.jpg")
-licensePlateText=licensePlateOcr()
-print(licensePlateText)
+tools=pyocr.get_available_tools()
 
-#台灣車牌為6碼或7碼
-if(len(licensePlateText)!=6 and len(licensePlateText)!=7):
-    speakText("車牌辨識錯誤")
-else:
-    # speakText("車牌號碼為{}".format(addSpaceBetweenChar(licensePlateText)))
+#檢查是否有OCR工具
+if len(tools)==0:#無OCR工具
+    print("沒有偵測到OCR工具")
     
-    #---------------是否停車中------------
-    isCarParking=False
-    for rowParkingDb in db.execute('SELECT car FROM parkingLot'):
-        # print("rowParkingDbIsTuple:",rowParkingDb)
-        
-        rowParkingDbRe=re.sub('[^A-Z0-9]','',str(rowParkingDb))
-        # print("rowParkingDbRe:",rowParkingDbRe)
-        
-        if rowParkingDbRe==licensePlateText:
-            isCarParking=True
-    #---------------是否停車中end---------
+else:#有OCR工具
+    tool=tools[0]
+    # print("這裡使用的OCR工具是{}".format(tool.get_name()))
+    # langs = tool.get_available_languages() # 獲得所有識別語言的語言包，返回列表
+    # print("支援識別的語言有：{}" .format("、".join(langs)))
     
-    if not isCarParking:#未停車，代表要進場
-        nowTime = datetime.now().strftime("%Y/%m/%d %H:%M:%S")#https://shengyu7697.github.io/python-get-current-time-and-date/
-        print(nowTime)
-        speakText(f"歡迎光臨{licensePlateText}，您的入場時間是{nowTime}")
-        db.execute(f'INSERT INTO parkingLot VALUES ("{licensePlateText}","{nowTime}")')
-        conn.commit()
+    lastLicensePlateText=""
+    camera = cv2.VideoCapture(0)#取得鏡頭
+    while(True):#重複執行拍照、裁切、處理、辨識
+        ret, frame = camera.read()
+
+        # cv2.imshow('frame', frame)
+        
+        licensePlateText=findLicensePlateAndOcr(frame)
         
         
-    else:#停車中，代表要離場
+        if licensePlateText=="偵測不到車牌範圍":
+            print("偵測不到車牌範圍")
+            
+        #用re判斷車牌格式是否符合 http://kaiching.org/pydoing/py/python-library-re.html
+        elif not re.fullmatch(r'[A-Z]{3}\d{4}',licensePlateText):#車牌不符合格式
+            print(f"車牌格式辨識錯誤，辨識出{licensePlateText}")
+            
+        else:#車牌符合格式
+            print("辨識出格式正確的車牌:"+licensePlateText)
+            # speakText("車牌號碼為{}".format(addSpaceBetweenChar(licensePlateText)))
+            
+            if licensePlateText!=lastLicensePlateText:#跟上一次辨識出的不一樣
+                
+                lastLicensePlateText=licensePlateText
+                
+                #---------------是否停車中------------
+                isCarParking=False
+                for rowParkingDb in db.execute('SELECT car FROM parkingLot'):
+                    # print("rowParkingDbIsTuple:",rowParkingDb)
+                    
+                    rowParkingDbRe=re.sub('[^A-Z0-9]','',str(rowParkingDb))
+                    # print("rowParkingDbRe:",rowParkingDbRe)
+                    
+                    if rowParkingDbRe==licensePlateText:
+                        isCarParking=True
+                #---------------是否停車中end---------
+
+                if not isCarParking:#未停車，代表要進場
+                    nowTime = datetime.now().strftime("%Y/%m/%d %H:%M:%S")#https://shengyu7697.github.io/python-get-current-time-and-date/
+                    print(nowTime)
+                    speakText(f"歡迎光臨{addSpaceBetweenChar(licensePlateText)}，您的入場時間是{nowTime}")
+                    db.execute(f'INSERT INTO parkingLot VALUES ("{licensePlateText}","{nowTime}")')
+                    conn.commit()
+                    
+                    
+                else:#停車中，代表要離場
+
+                    #-----------------計費:每小時20元，未滿一小時以一小時計費
+                    for rowInTimeDb in db.execute(f'SELECT inTime FROM parkingLot WHERE car == "{licensePlateText}"'):
+                        # print("inTimeDbIsTuple:",rowInTimeDb)
+                        # print("inTimeDbDb[0]:",rowInTimeDb[0])
+                        
+                        nowTime = datetime.now()#https://blog.csdn.net/Gordennizaicunzai/article/details/78926255   https://codertw.com/%E7%A8%8B%E5%BC%8F%E8%AA%9E%E8%A8%80/370349/
+                        parkInTime = datetime.strptime(rowInTimeDb[0],"%Y/%m/%d %H:%M:%S")
+                    delta=nowTime-parkInTime
+                    # print(delta)
+                    days=delta.days
+                    seconds=delta.seconds
+                    minutes, seconds = divmod(seconds, 60)# divmod() 函數把除數和餘數運算結果結合起来，返回一個包含商和餘數的數組(a // b, a % b)
+                    hours, minutes = divmod(minutes, 60)
+                    print(f"停了{days}天{hours}小時{minutes}分{seconds}秒")
+                    parkHours=days*24+hours
+                    if minutes!=0 or seconds!=0:
+                        parkHours+=1
+                    print(f"收費時數為{parkHours}小時，共{parkHours*20}元")
+                    speakText(f"停了{days}天{hours}小時又{minutes}分{seconds}秒，收費時數為{parkHours}小時，共{parkHours*20}元")#加"又"的原因，拿「2小時3分」去給google小姐念就知道
+                    while mixer.music.get_busy():#等上面講完
+                        sleep(0.5)
+                    #-----------------計費end
+                    
+                    speakText("謝謝光臨，請刷卡")
+                    card=readCard()
+                    print(card)
+                    
+                    speakText("扣款完成，請出場")#扣款
+                    db.execute(f'DELETE FROM parkingLot WHERE car == "{licensePlateText}"')
+                    conn.commit()
+                    
+                    #-------------是否註冊------------
+                    isCardInDb=False
+                    for rowCardDb in db.execute('select card from customer'):
+                        # print("rowCardDb:",rowCardDb)
+                        
+                        rowCardDbRe=re.sub('[^A-Z0-9]','',str(rowCardDb))
+                        # print("rowCardDbRe:",rowCardDbRe)
+                        
+                        if rowCardDbRe==card:
+                            isCardInDb=True
+                    #-------------是否註冊end---------
+                    
+                    if isCardInDb:#有註冊，推播
+                        notify(card,f"感謝顧客{licensePlateText}光臨本停車場\n您此次停了{days}天{hours}小時{minutes}分{seconds}秒\n收費時數為{parkHours}小時，共{parkHours*20}元")
+                
+            
+        #不知道為啥不用sleep就可以達到每秒拍一張，程式有執行這麼慢?
+        # if cv2.waitKey(1) == ord('q'):
+        #     break
     
-        #-----------------計費:每小時20元，未滿一小時以一小時計費
-        for rowInTimeDb in db.execute(f'SELECT inTime FROM parkingLot WHERE car == "{licensePlateText}"'):
-            # print("inTimeDbIsTuple:",rowInTimeDb)
-            # print("inTimeDbDb[0]:",rowInTimeDb[0])
-            
-            nowTime = datetime.now()#https://blog.csdn.net/Gordennizaicunzai/article/details/78926255   https://codertw.com/%E7%A8%8B%E5%BC%8F%E8%AA%9E%E8%A8%80/370349/
-            parkInTime = datetime.strptime(rowInTimeDb[0],"%Y/%m/%d %H:%M:%S")
-        delta=nowTime-parkInTime
-        # print(delta)
-        days=delta.days
-        seconds=delta.seconds
-        minutes, seconds = divmod(seconds, 60)# divmod() 函數把除數和餘數運算結果結合起来，返回一個包含商和餘數的數組(a // b, a % b)
-        hours, minutes = divmod(minutes, 60)
-        print(f"停了{days}天{hours}小時{minutes}分{seconds}秒")
-        parkHours=days*24+hours
-        if minutes!=0 or seconds!=0:
-            parkHours+=1
-        print(f"收費時數為{parkHours}小時，共{parkHours*20}元")
-        speakText(f"停了{days}天{hours}小時又{minutes}分{seconds}秒，收費時數為{parkHours}小時，共{parkHours*20}元")#加"又"的原因，拿「2小時3分」去給google小姐念就知道
-        while mixer.music.get_busy():#等上面講完
-            sleep(0.5)
-        #-----------------計費end
-        
-        speakText("謝謝光臨，請刷卡")
-        card=readCard()
-        print(card)
-        
-        speakText("扣款完成，請出場")#扣款
-        db.execute(f'DELETE FROM parkingLot WHERE car == "{licensePlateText}"')
-        conn.commit()
-        
-        #-------------是否註冊------------
-        isCardInDb=False
-        for rowCardDb in db.execute('select card from customer'):
-            # print("rowCardDb:",rowCardDb)
-            
-            rowCardDbRe=re.sub('[^A-Z0-9]','',str(rowCardDb))
-            # print("rowCardDbRe:",rowCardDbRe)
-            
-            if rowCardDbRe==card:
-                isCardInDb=True
-        #-------------是否註冊end---------
-        
-        if isCardInDb:#有註冊，推播
-            notify(card,f"感謝顧客{licensePlateText}光臨本停車場\n您此次停了{days}天{hours}小時{minutes}分{seconds}秒\n收費時數為{parkHours}小時，共{parkHours*20}元")
-            
-        
+        # sleep(1)
+    #END While----------------------
+
+    # camera.release()
+    # cv2.destroyAllWindows()
