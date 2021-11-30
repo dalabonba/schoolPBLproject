@@ -315,7 +315,9 @@ else:#有OCR工具
     # print("支援識別的語言有：{}" .format("、".join(langs)))
     
     lastLicensePlateText=""
-    camera = cv2.VideoCapture(0)#取得鏡頭
+    camera = cv2.VideoCapture(0)
+    # camera = cv2.VideoCapture(1,cv2.CAP_DSHOW)#取得鏡頭   DSHOW -> https://walkonnet.com/archives/166085
+    # camera.set(cv2.CAP_PROP_AUTOFOCUS,1) #開啟自動對焦http://hk.uwenku.com/question/p-mlofkqpd-oq.html
     while(True):#重複執行拍照、裁切、處理、辨識
         ret, frame = camera.read()
 
@@ -408,7 +410,6 @@ else:#有OCR工具
                         notify(card,f"感謝顧客{licensePlateText}光臨本停車場\n您此次停了{days}天{hours}小時{minutes}分{seconds}秒\n收費時數為{parkHours}小時，共{parkHours*20}元")
                 
             
-        #不知道為啥不用sleep就可以達到每秒拍一張，程式有執行這麼慢?
         # if cv2.waitKey(1) == ord('q'):
         #     break
     
