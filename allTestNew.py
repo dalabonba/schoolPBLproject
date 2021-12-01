@@ -172,14 +172,33 @@ def addSpaceBetweenChar(string):
 #註冊畫面常駐開啟
 def signUp():
     
+    #檢查輸入框，內容符合格式，按鈕啟用，否則禁用https://www.pynote.net/archives/1499  https://www.coder.work/article/1260300
+    def checkEntry(event):
+        data=licensePlateEntryText.get()
+        # print(data)
+        if not re.fullmatch(r'[A-Z]{3}\d{4}',data):
+            buttonConfirm["state"] = "disabled"
+        else:
+            buttonConfirm["state"] = "normal"
+    
+    #提示訊息效果https://blog.csdn.net/qq_32711799/article/details/114992250
+    def focusInEntry(event):
+        if licensePlateEntryText.get()=="3英4數 ex:ABC5678":
+            licensePlateEntry.delete(0,"end")#刪除輸入框文字，從位置0到最後都刪掉
+            licensePlateEntry.configure(fg="black")
+    def focusOutEntry(event):
+        if licensePlateEntryText.get()=="":
+            licensePlateEntry.insert(0, "3英4數 ex:ABC5678")
+            licensePlateEntry.configure(fg="gray")
+    
     window=tk.Tk()
     window.title('註冊')
-    window.geometry('300x150')
+    window.geometry('400x150')
     window.resizable(0,0)
     
     def getCardAndToken():
-        label=tk.Label(window,text="請逼卡", font=('Arial', 30))
-        label.pack()
+        labelTapCard=tk.Label(window,text="請逼卡", font=('Arial', 30))
+        labelTapCard.grid(row=2, column=1)
         
         def aa():
             
@@ -250,14 +269,14 @@ def signUp():
             #-------------------------------------------------------------------------
             
             card=readCard()
-            label.pack_forget()
+            labelTapCard.grid_forget()
             token=get_token()
             
             conn = sqlite3.connect('allTestNew.db')
             db = conn.cursor()
             print(f"++++++++++++++++++++{card}")
             print(f"++++++++++++++++++++{token}")
-            db.execute(f'INSERT INTO customer VALUES ("{card}","{token}")')
+            db.execute(f'INSERT INTO customer VALUES ("{licensePlateEntryText.get()}","{card}","{token}")')
             conn.commit()
             conn.close()
         
@@ -265,7 +284,27 @@ def signUp():
         aa = Thread(target=aa)
         aa.start()
     
-    tk.Button(window, text="讀卡", font=('Arial', 40), command=getCardAndToken).pack()
+    
+    
+    
+    
+    labelPlsKeyIn=tk.Label(window,text="請輸入車牌:", font=('Arial', 17))
+    labelPlsKeyIn.grid(row=0, column=0)
+    
+    licensePlateEntryText = tk.StringVar()
+    licensePlateEntry = tk.Entry(window, textvariable=licensePlateEntryText, font=('Arial', 17))
+    licensePlateEntry.insert(0, "3英4數 ex:ABC5678")#從位置0插入預設值 https://www.delftstack.com/zh-tw/howto/python-tkinter/how-to-set-default-text-of-tkinter-entry-widget/
+    licensePlateEntry.configure(fg="gray")#文字設為灰色 https://blog.csdn.net/qq_39451578/article/details/103575771
+    licensePlateEntry.bind('<KeyRelease>', checkEntry)
+    licensePlateEntry.bind('<FocusIn>', focusInEntry)
+    licensePlateEntry.bind('<FocusOut>', focusOutEntry)
+    licensePlateEntry.grid(row=0, column=1)
+    
+    buttonConfirm=tk.Button(window, text="確認", font=('Arial', 17), command=getCardAndToken)
+    buttonConfirm.grid(row=1, column=1)
+    buttonConfirm["state"] = "disabled"
+    
+    
     
     window.mainloop()
 
@@ -276,7 +315,7 @@ signUp.start()
 
 
 #推播
-def notify(_card,_message):
+def notify(_licensePlate,_message):
     def lineNotifyMessage(token, msg):
 
         headers = {
@@ -289,7 +328,7 @@ def notify(_card,_message):
         return r.status_code
     
     if __name__ == "__main__":
-      for rowTokenDb in db.execute(f'SELECT token FROM customer WHERE card == "{_card}"'):
+      for rowTokenDb in db.execute(f'SELECT token FROM customer WHERE licensePlate == "{_licensePlate}"'):
           token = rowTokenDb[0]
       message = _message
       lineNotifyMessage(token, message)
@@ -324,7 +363,7 @@ else:#有OCR工具
         # cv2.imshow('frame', frame)
         
         licensePlateText=findLicensePlateAndOcr(frame)
-        
+        licensePlateText="ABC1234"#-------------------------------------------------!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         
         if licensePlateText=="偵測不到車牌範圍":
             print("偵測不到車牌範圍")
@@ -386,28 +425,33 @@ else:#有OCR工具
                         sleep(0.5)
                     #-----------------計費end
                     
-                    speakText("謝謝光臨，請刷卡")
-                    card=readCard()
-                    print(card)
                     
-                    speakText("扣款完成，請出場")#扣款
-                    db.execute(f'DELETE FROM parkingLot WHERE car == "{licensePlateText}"')
-                    conn.commit()
                     
                     #-------------是否註冊------------
-                    isCardInDb=False
-                    for rowCardDb in db.execute('select card from customer'):
-                        # print("rowCardDb:",rowCardDb)
+                    islicensePlateInDb=False
+                    for rowlicensePlateDb in db.execute('select licensePlate from customer'):
+                        # print("rowlicensePlateDb:",rowlicensePlateDb)
                         
-                        rowCardDbRe=re.sub('[^A-Z0-9]','',str(rowCardDb))
-                        # print("rowCardDbRe:",rowCardDbRe)
+                        licensePlateDbRe=re.sub('[^A-Z0-9]','',str(rowlicensePlateDb))
+                        # print("licensePlateDbRe:",licensePlateDbRe)
                         
-                        if rowCardDbRe==card:
-                            isCardInDb=True
+                        if licensePlateDbRe==licensePlateText:
+                            islicensePlateInDb=True
                     #-------------是否註冊end---------
                     
-                    if isCardInDb:#有註冊，推播
-                        notify(card,f"感謝顧客{licensePlateText}光臨本停車場\n您此次停了{days}天{hours}小時{minutes}分{seconds}秒\n收費時數為{parkHours}小時，共{parkHours*20}元")
+                    if islicensePlateInDb:#有註冊，推播
+                        speakText("以自動扣款完成，請出場")
+                        db.execute(f'DELETE FROM parkingLot WHERE car == "{licensePlateText}"')
+                        conn.commit()
+                        notify(licensePlateText,f"感謝顧客{licensePlateText}光臨本停車場\n您此次停了{days}天{hours}小時{minutes}分{seconds}秒\n收費時數為{parkHours}小時，共{parkHours*20}元")
+                    else:#沒註冊
+                        speakText("謝謝光臨，請刷卡")
+                        card=readCard()
+                        print("卡號:",card)
+                        
+                        speakText("扣款完成，請出場")
+                        db.execute(f'DELETE FROM parkingLot WHERE car == "{licensePlateText}"')
+                        conn.commit()
                 
             
         # if cv2.waitKey(1) == ord('q'):
@@ -418,3 +462,5 @@ else:#有OCR工具
 
     # camera.release()
     # cv2.destroyAllWindows()
+    
+    
