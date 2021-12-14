@@ -363,7 +363,6 @@ else:#有OCR工具
         # cv2.imshow('frame', frame)
         
         licensePlateText=findLicensePlateAndOcr(frame)
-        licensePlateText="ABC1234"#-------------------------------------------------!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         
         if licensePlateText=="偵測不到車牌範圍":
             print("偵測不到車牌範圍")
