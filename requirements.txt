@@ -1,0 +1,7 @@
+requests
+opencv-python
+pyocr
+pyserial
+gTTS
+pygame
+pip install -r requirements.txt
