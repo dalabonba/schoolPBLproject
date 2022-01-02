@@ -14,7 +14,7 @@ db = conn.cursor()
 # conn.commit()
 
 
-# 我的token=AXXMRm1rdxj69E3IWDrKBnatzhhPYrgmvL8G1ikehnV
+# 我的token=9d3YLjEyqOLna9ZYlgBC1tUswQUvo7U5rDyfaYOlcgT
 
 tapCardList=[]
 aa=40941101
@@ -25,6 +25,16 @@ for i in range(20):
 VtapCard=random.choice(tapCardList)
 print(VtapCard)
 
-for row in db.execute(f'SELECT token FROM table1 where card == {VtapCard}'):
-    row1=str(row)
-    print(row1)
+db.execute(f'SELECT token FROM table1 where card == {VtapCard}')
+for i in db.fetchone():
+    print(i)
+
+
+db.execute('SELECT token FROM table1 where card == 40941101')
+for i in db.fetchall():
+    print(i)
+
+
+db.execute('SELECT token FROM table1 where card == 40941101')
+for i in db.fetchmany(2):
+    print(i)
